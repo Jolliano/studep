@@ -1,52 +1,33 @@
-from flask import Flask, render_template, request, jsonify
-import subprocess
-import os
-import tempfile
+import numpy as np
 
-# Initialize the Flask application with a custom static folder
-app = Flask(__name__)
+from flask import Flask, request, render_template
 
+import pickle
+
+app = Flask(__name__, template_folder='templates')
+
+loaded_model = pickle.load(open("model.pkl", "rb"))
+
+#create our "home" route using the "index.html" page
 @app.route('/')
-def index():
+def home():
     return render_template('index.html')
 
-@app.route('/execute', methods=['POST'])
-def execute_code():
-    language = request.form.get('language')
-    code = request.form.get('code')
-    
-    # Create a temporary file to hold the code
-    with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{language}') as temp_file:
-        temp_file.write(code.encode())
-        temp_file_path = temp_file.name
-    
-    output = ''
-    exe_file = None
-    
-    try:
-        if language == 'php':
-            output = subprocess.check_output(['php', temp_file_path], stderr=subprocess.STDOUT).decode()
-        elif language == 'python':
-            output = subprocess.check_output(['python', temp_file_path], stderr=subprocess.STDOUT).decode()
-        elif language == 'node':
-            output = subprocess.check_output(['node', temp_file_path], stderr=subprocess.STDOUT).decode()
-        elif language == 'c':
-            exe_file = temp_file_path.replace('.c', '.exe')
-            subprocess.run(['gcc', temp_file_path, '-o', exe_file], check=True)
-            output = subprocess.check_output([exe_file], stderr=subprocess.STDOUT).decode()
-        elif language == 'cpp':
-            exe_file = temp_file_path.replace('.cpp', '.exe')
-            subprocess.run(['g++', temp_file_path, '-o', exe_file], check=True)
-            output = subprocess.check_output([exe_file], stderr=subprocess.STDOUT).decode()
-    except subprocess.CalledProcessError as e:
-        output = e.output.decode() if e.output else str(e)
-    finally:
-        # Clean up temporary files
-        os.remove(temp_file_path)
-        if exe_file and os.path.exists(exe_file):
-            os.remove(exe_file)
-    
-    return jsonify({'output': output})
-    
-if __name__ == '__main__':
+
+#Set a post method to yield predictions on page
+@app.route('/', methods = ['POST'])
+def predict():
+	#obtain all form values and place them in an array, convert into integers
+    features = [x for x in request.form.values()]
+    #Combine them all into a final numpy array
+    final_features = [np.array(features)]
+    #predict the price given the values inputted by user
+    prediction = loaded_model.predict(final_features)
+    if int(prediction)== 0:
+        return render_template('index.html', prediction_text = "You are not currently in danger of having Depression.")
+    else:
+        return render_template('index.html', prediction_text = "Omo, you are in danger of being depressed.")
+
+#Run app
+if __name__ == "__main__":
     app.run(debug=True)
