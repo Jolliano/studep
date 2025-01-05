@@ -1,12 +1,12 @@
-#import numpy as np
+import numpy as np
 
 from flask import Flask, request, render_template
 
-#import pickle
+import pickle
 
 app = Flask(__name__, template_folder='templates')
 
-#loaded_model = pickle.load(open("model.pkl", "rb"))
+loaded_model = pickle.load(open("model.pkl", "rb"))
 
 #create our "home" route using the "index.html" page
 @app.route('/')
